@@ -13,6 +13,8 @@ use DMore\ChromeDriver\ChromeDriver;
  */
 abstract class MinkBase extends \CiviEndToEndTestCase {
 
+  use BrowserLoginTrait;
+
   protected ?Mink $mink = NULL;
   protected bool $screenshotsEnabled = FALSE;
   protected ?ChromeObserver $chromeObserver = NULL;
@@ -60,33 +62,11 @@ abstract class MinkBase extends \CiviEndToEndTestCase {
   }
 
   protected function login(string $user): void {
-    $tok = \Civi::service('crypto.jwt')->encode([
-      'exp' => time() + 60 + 999999,
-      'sub' => 'cid:' . $this->getUserId($user),
-      'scope' => 'authx',
-    ]);
-    // The use of frontend:// or backend:// is abstract on some env's. For WP, only 'frontend' supports auth
-    $loginUrl = Civi::url('frontend://civicrm/authx/login')->addQuery([
-      '_authx' => 'Bearer ' . $tok,
-      '_authxSes' => 1,
-    ]);
-    $this->mink->getSession()->visit($loginUrl);
+    $this->mink->getSession()->visit($this->getLoginUrl($user));
   }
 
   protected function visit(string $url): void {
     $this->mink->getSession()->visit($url);
-  }
-
-  private function getUserId(string $user): int {
-    $r = civicrm_api3("Contact", "get", ["id" => "@user:" . $user]);
-    foreach ($r['values'] as $id => $value) {
-      $cid = $id;
-      break;
-    }
-    if (empty($cid)) {
-      throw new \RuntimeException("Failed to identify user ({$user})");
-    }
-    return $cid;
   }
 
   protected function createMink(): Mink {
